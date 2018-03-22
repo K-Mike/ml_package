@@ -1,5 +1,6 @@
 import tqdm
 import pandas as pd
+import numpy as np
 
 
 def convert_tokens_to_ids(tokenized_sentences, words_dict, embedding_word_dict, sentences_length,
@@ -54,3 +55,57 @@ def read_embedding_list(file_path):
     df = df.astype('float32')
     print('embedding shape', df.shape)
     return df
+
+# Todo: sample of making embeding, re do it.
+def create_datasets(embedding_path, maxlen=500):
+    train = pd.read_csv('input/train.csv')
+    test = pd.read_csv('input/test.csv')
+
+    print('read_embedding_list')
+    path_out = 'glove/crawl-300d-2M.csv'
+    word_embeding = pd.read_csv(path_out, index_col=0)
+    # word_embeding = read_embedding_list(embedding_path)
+    # word_embeding = pd.read_table(embedding_path, sep=" ", index_col=0, header=None, quoting=csv.QUOTE_NONE)
+    embedding_size = word_embeding.shape[1]
+
+    # text cleaning
+    train['comment_text'] = train['comment_text'].apply(clean_text)
+    test['comment_text'] = test['comment_text'].apply(clean_text)
+
+    # Tokenizing
+    list_sentences_train = train["comment_text"].fillna(NAN_WORD).values
+    list_sentences_test = test["comment_text"].fillna(NAN_WORD).values
+
+    print("Tokenizing sentences in train set...")
+    tokenized_sentences_train, words_dict = tokenize_sentences(list_sentences_train, {})
+
+    print("Tokenizing sentences in test set...")
+    tokenized_sentences_test, words_dict = tokenize_sentences(list_sentences_test, words_dict)
+
+    print("clear embedding list...")
+    embedding_matrix, embedding_word_dict = clear_embedding_list(word_embeding, words_dict, sp_bad_words)
+
+    embedding_word_dict[UNKNOWN_WORD] = len(embedding_word_dict)
+    embedding_matrix = np.vstack([embedding_matrix, [0.] * embedding_size])
+    embedding_word_dict[END_WORD] = len(embedding_word_dict)
+    embedding_matrix = np.vstack([embedding_matrix, [-1.] * embedding_size])
+
+    id_to_word = dict((id, word) for word, id in words_dict.items())
+    print("convert train...")
+    train_list_of_token_ids = convert_tokens_to_ids(
+        tokenized_sentences_train,
+        id_to_word,
+        embedding_word_dict,
+        maxlen)
+    print("convert test...")
+    test_list_of_token_ids = convert_tokens_to_ids(
+        tokenized_sentences_test,
+        id_to_word,
+        embedding_word_dict,
+        maxlen)
+    print("Create datasets...")
+    x_train = np.array(train_list_of_token_ids)
+    y_train = train[label_cols].values
+    x_test = np.array(test_list_of_token_ids)
+
+    return x_train, y_train, x_test, embedding_matrix, embedding_word_dict
