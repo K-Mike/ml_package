@@ -1,4 +1,5 @@
 import tqdm
+import nltk
 import pandas as pd
 import numpy as np
 
@@ -56,7 +57,34 @@ def read_embedding_list(file_path):
     print('embedding shape', df.shape)
     return df
 
-# Todo: sample of making embeding, re do it.
+
+# Sample of tokenize sentences
+def tokenize_sentences(sentences, words_dict):
+    tokenized_sentences = []
+    tweet_knzr = nltk.tokenize.TweetTokenizer(strip_handles=False, reduce_len=False)
+    for sentence in tqdm.tqdm(sentences):
+        if hasattr(sentence, "decode"):
+            sentence = sentence.decode("utf-8")
+        # tokens = nltk.tokenize.word_tokenize(sentence)
+        tokens = tweet_knzr.tokenize(sentence)
+        result = []
+        for word in tokens:
+            word = word.lower()
+
+            # if word not in WORDS_INDEX:
+            #     word = WORDS_CORECTION.get(word, word)
+
+            if word not in words_dict:
+                # continue
+                words_dict[word] = len(words_dict)
+            word_index = words_dict[word]
+            result.append(word_index)
+        tokenized_sentences.append(result)
+
+    return tokenized_sentences, words_dict
+
+
+# Todo: sample of making embeding, redo it.
 def create_datasets(embedding_path, maxlen=500):
     train = pd.read_csv('input/train.csv')
     test = pd.read_csv('input/test.csv')
